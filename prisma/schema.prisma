@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id    Int    @id @default(autoincrement())
+  name  String
+  email String @unique
+  password String
+  createAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  DRIVER
+  GUARDIAN
+  STUDENT
+}
+
+enum TripStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+  CANCELED
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+enum IncidentType {
+  STUCK
+  ACCIDENT
+  BREAKDOWN
+  DELAY
+  OTHER
+}
+
+enum LocationType {
+  CITY
+  DISTRICT
+  VILLAGE // sítio / comunidade
+  NEIGHBORHOOD
+  OTHER
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  cpf       String?  @unique
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+
+  student            Student?
+  drivenTrips        Trip[]      @relation("TripDriver")
+  reportedIncidents  Incident[]  @relation("IncidentReporter")
+  guardianships      Guardianship[] @relation("GuardianOf")
+}
+
+// So o Aluno tem dado proprio (matricula), entao so ele ganha tabela
+model Student {
+  userId       Int    @id
+  registration String @unique
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  enrollments Enrollment[]
+  guardians   Guardianship[] @relation("StudentOf")
+}
+
+// Relacionamento "possui" (Responsavel N:N Aluno) + atributo acompanha_viagem
+model Guardianship {
+  guardianId  Int
+  studentId   Int
+  followsTrip Boolean @default(true)
+
+  guardian User    @relation("GuardianOf", fields: [guardianId], references: [id], onDelete: Cascade)
+  student  Student @relation("StudentOf", fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@id([guardianId, studentId])
+}
+
+model Bus {
+  id       Int    @id @default(autoincrement())
+  plate    String @unique
+  capacity Int
+
+  trips Trip[]
+}
+
+// Localidade (Partida, Parada e Destino sao papeis dela; ver Trip e TripStop)
+model Location {
+  id           Int          @id @default(autoincrement())
+  name         String
+  type         LocationType
+  city         String
+  district     String?
+  latitude     Float?
+  longitude    Float?
+  neighborhood String?
+  street       String?
+  number       String?
+  zipCode      String?
+
+  tripsStartingHere Trip[]     @relation("TripOrigin")
+  tripsEndingHere   Trip[]     @relation("TripDestination")
+  stops             TripStop[]
+}
+
+model Trip {
+  id            Int        @id @default(autoincrement())
+  startsAt      DateTime
+  endsAt        DateTime?
+  status        TripStatus @default(SCHEDULED)
+
+  busId         Int
+  driverId      Int
+  originId      Int // "comeca em"  (1,1)
+  destinationId Int // "termina em" (1,1)
+
+  bus         Bus      @relation(fields: [busId], references: [id])
+  driver      User     @relation("TripDriver", fields: [driverId], references: [id])
+  origin      Location @relation("TripOrigin", fields: [originId], references: [id])
+  destination Location @relation("TripDestination", fields: [destinationId], references: [id])
+
+  stops       TripStop[]
+  enrollments Enrollment[]
+  incidents   Incident[]
+
+  @@index([driverId])
+  @@index([busId])
+}
+
+// Entidade associativa Parada_viagem ("passa por")
+model TripStop {
+  tripId        Int
+  locationId    Int
+  stopOrder     Int
+  scheduledTime DateTime?
+
+  trip     Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@id([tripId, locationId])
+  @@unique([tripId, stopOrder])
+}
+
+// Relacionamento "participa" (Aluno N:N Viagem)
+model Enrollment {
+  studentId  Int
+  tripId     Int
+  enrolledAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, tripId])
+}
+
+model Incident {
+  id          Int            @id @default(autoincrement())
+  type        IncidentType
+  description String
+  status      IncidentStatus @default(OPEN)
+  createdAt   DateTime       @default(now())
+
+  tripId     Int
+  reporterId Int // "registra": o motorista
+
+  trip     Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reporter User @relation("IncidentReporter", fields: [reporterId], references: [id])
+}
