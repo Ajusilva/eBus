@@ -36,6 +36,13 @@ export async function createUser(input: CreateUserInput) {
     throw new AppError("Tipo de usuário inválido.", 400);
   }
 
+  if (role === Role.SUPER_ADMIN) {
+  throw new AppError(
+    "O administrador geral não pode ser cadastrado por esta rota.",
+    403
+  );
+}
+
   if (role === Role.STUDENT && !registration) {
     throw new AppError(
       "A matrícula é obrigatória para estudantes.",
