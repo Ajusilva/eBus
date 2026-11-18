@@ -7,15 +7,9 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id    Int    @id @default(autoincrement())
-  name  String
-  email String @unique
-  password String
-  createAt DateTime @default(now())
-}
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   DRIVER
   GUARDIAN
@@ -60,13 +54,13 @@ model User {
   role      Role     @default(STUDENT)
   createdAt DateTime @default(now())
 
-  student            Student?
-  drivenTrips        Trip[]      @relation("TripDriver")
-  reportedIncidents  Incident[]  @relation("IncidentReporter")
-  guardianships      Guardianship[] @relation("GuardianOf")
+  student           Student?
+  drivenTrips       Trip[]         @relation("TripDriver")
+  reportedIncidents Incident[]     @relation("IncidentReporter")
+  guardianships     Guardianship[] @relation("GuardianOf")
+  organizationMemberships OrganizationMember[]
 }
 
-// So o Aluno tem dado proprio (matricula), entao so ele ganha tabela
 model Student {
   userId       Int    @id
   registration String @unique
@@ -76,7 +70,6 @@ model Student {
   guardians   Guardianship[] @relation("StudentOf")
 }
 
-// Relacionamento "possui" (Responsavel N:N Aluno) + atributo acompanha_viagem
 model Guardianship {
   guardianId  Int
   studentId   Int
@@ -88,15 +81,22 @@ model Guardianship {
   @@id([guardianId, studentId])
 }
 
+
 model Bus {
   id       Int    @id @default(autoincrement())
   plate    String @unique
   capacity Int
 
+  organizationId Int?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
   trips Trip[]
+  
+
+  @@index([organizationId])
 }
 
-// Localidade (Partida, Parada e Destino sao papeis dela; ver Trip e TripStop)
+
 model Location {
   id           Int          @id @default(autoincrement())
   name         String
@@ -115,16 +115,20 @@ model Location {
   stops             TripStop[]
 }
 
+
 model Trip {
-  id            Int        @id @default(autoincrement())
-  startsAt      DateTime
-  endsAt        DateTime?
-  status        TripStatus @default(SCHEDULED)
+  id       Int        @id @default(autoincrement())
+  startsAt DateTime
+  endsAt   DateTime?
+  status   TripStatus @default(SCHEDULED)
 
   busId         Int
   driverId      Int
-  originId      Int // "comeca em"  (1,1)
-  destinationId Int // "termina em" (1,1)
+  originId      Int
+  destinationId Int
+
+  organizationId Int?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
   bus         Bus      @relation(fields: [busId], references: [id])
   driver      User     @relation("TripDriver", fields: [driverId], references: [id])
@@ -137,9 +141,10 @@ model Trip {
 
   @@index([driverId])
   @@index([busId])
+  @@index([organizationId])
 }
 
-// Entidade associativa Parada_viagem ("passa por")
+
 model TripStop {
   tripId        Int
   locationId    Int
@@ -153,7 +158,6 @@ model TripStop {
   @@unique([tripId, stopOrder])
 }
 
-// Relacionamento "participa" (Aluno N:N Viagem)
 model Enrollment {
   studentId  Int
   tripId     Int
@@ -178,3 +182,79 @@ model Incident {
   trip     Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
   reporter User @relation("IncidentReporter", fields: [reporterId], references: [id])
 }
+
+
+enum OrganizationType {
+  COMPANY
+  CITY_HALL
+}
+
+
+model Organization {
+  id        Int              @id @default(autoincrement())
+  name      String
+  type      OrganizationType
+  status OrganizationStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+
+  members OrganizationMember[]
+  buses    Bus[]
+  trips    Trip[]
+}
+
+
+enum OrganizationRole {
+  ADMIN
+  DRIVER
+}
+
+enum OrganizationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model OrganizationMember {
+  userId         Int
+  organizationId Int
+  role           OrganizationRole
+  joinedAt       DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, organizationId])
+}
+
+
+model AccessRole {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+
+  permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  role       AccessRole @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
