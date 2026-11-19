@@ -3,6 +3,8 @@ import express from "express";
 import userRoutes from "./routes/user.routes";
 import AppError from "./utils/AppError";
 import authRoutes from "./routes/auth.routes";
+import organizationRoutes from "./routes/organization.routes";
+import adminRoutes from "./routes/admin.routes";
 
 export const app = express();
 
@@ -19,7 +21,8 @@ app.get("/", (_req, res) => {
 
 
 app.use(userRoutes);
-
+app.use(organizationRoutes);
+app.use(adminRoutes);
 
 app.use((
   error: unknown,

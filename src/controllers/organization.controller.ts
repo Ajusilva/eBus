@@ -1,6 +1,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import { createOrganization } from "../services/organization.service";
+import AppError from "../utils/AppError";
 
 export async function createOrganizationController(
   req: Request,
@@ -8,10 +9,22 @@ export async function createOrganizationController(
   next: NextFunction
 ) {
   try {
-    const organization = await createOrganization(req.body);
+    const userId = res.locals.userId;
+
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw new AppError(
+        "É necessário estar autenticado para cadastrar uma prefeitura.",
+        401
+      );
+    }
+
+    const organization = await createOrganization({
+      ...req.body,
+      requesterId: userId,
+    });
 
     return res.status(201).json({
-      message: "Organização cadastrada com sucesso.",
+      message: "Solicitação de cadastro enviada para aprovação.",
       organization,
     });
   } catch (error) {
