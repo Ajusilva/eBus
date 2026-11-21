@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.routes";
 import organizationRoutes from "./routes/organization.routes";
 import adminRoutes from "./routes/admin.routes";
 import busRoutes from "./routes/bus.routes";
+import driverRoutes from "./routes/driver.routes";
 
 export const app = express();
 
@@ -26,6 +27,7 @@ app.use(userRoutes);
 app.use(organizationRoutes);
 app.use(adminRoutes);
 app.use(busRoutes);
+app.use(driverRoutes);
 
 // Tratamento global de erros
 app.use((
