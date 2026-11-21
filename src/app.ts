@@ -5,13 +5,14 @@ import AppError from "./utils/AppError";
 import authRoutes from "./routes/auth.routes";
 import organizationRoutes from "./routes/organization.routes";
 import adminRoutes from "./routes/admin.routes";
+import busRoutes from "./routes/bus.routes";
 
 export const app = express();
 
+// Permite que a API receba dados JSON
 app.use(express.json());
-app.use(authRoutes);
 
-
+// Rota para verificar se a API está funcionando
 app.get("/", (_req, res) => {
   res.json({
     ok: true,
@@ -19,11 +20,14 @@ app.get("/", (_req, res) => {
   });
 });
 
-
+// Registro das rotas
+app.use(authRoutes);
 app.use(userRoutes);
 app.use(organizationRoutes);
 app.use(adminRoutes);
+app.use(busRoutes);
 
+// Tratamento global de erros
 app.use((
   error: unknown,
   _req: express.Request,

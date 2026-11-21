@@ -6,13 +6,10 @@ import { reviewOrganizationController } from "../controllers/admin.controller";
 
 const router = Router();
 
-
-router.use(authenticate);
-router.use(requireSuperAdmin);
-
-
 router.patch(
   "/admin/organizations/:id/review",
+  authenticate,
+  requireSuperAdmin,
   reviewOrganizationController
 );
 
